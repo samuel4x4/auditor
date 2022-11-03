@@ -15,7 +15,7 @@ use DH\Auditor\Provider\Doctrine\Persistence\Helper\DoctrineHelper;
 use DH\Auditor\Transaction\TransactionProcessorInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
-
+use DH\Auditor\Event\Dto\UpdateEventDto;
 /**
  * @see \DH\Auditor\Tests\Provider\Doctrine\Auditing\Transaction\TransactionProcessorTest
  */
@@ -25,7 +25,7 @@ class TransactionProcessor implements TransactionProcessorInterface
 
     const MAX_RECENT_ENTRIES = 100;
     static array $recentEntries = [];
-    
+
     private DoctrineProvider $provider;
 
     public function __construct(DoctrineProvider $provider)
@@ -136,25 +136,17 @@ class TransactionProcessor implements TransactionProcessorInterface
     private function processInsertions(Transaction $transaction, EntityManagerInterface $entityManager): void
     {
         $uow = $entityManager->getUnitOfWork();
-        foreach ($transaction->getInserted() as $dto) {           
+        foreach ($transaction->getInserted() as $dto) {
             // the changeset might be updated from UOW extra updates
             $ch = array_merge($dto->getChangeset(), $uow->getEntityChangeSet($dto->getSource()));
-            
-            $id = $this->id($entityManager, $dto->getSource());
-            $diff = $this->diff($entityManager, $dto->getSource(), $ch);
-            $entryHash = $id . json_encode($diff);
-            
+
+            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $ch);
+
             if(!in_array($entryHash, self::$recentEntries)) {
                 $this->insert($entityManager, $dto->getSource(), $ch, $transaction->getTransactionHash());
                 self::$recentEntries[] = $entryHash;
                 self::cleanRecentEntries();
             }
-        }
-    }
-    
-    public static function cleanRecentEntries() {
-        if(count(self::$recentEntries) > self::MAX_RECENT_ENTRIES) {
-            unset(self::$recentEntries[0]);
         }
     }
 
@@ -164,28 +156,56 @@ class TransactionProcessor implements TransactionProcessorInterface
         foreach ($transaction->getUpdated() as $dto) {
             // the changeset might be updated from UOW extra updates
             $ch = array_merge($dto->getChangeset(), $uow->getEntityChangeSet($dto->getSource()));
-            $this->update($entityManager, $dto->getSource(), $ch, $transaction->getTransactionHash());
+
+            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $ch);
+
+            if(!in_array($entryHash, self::$recentEntries)) {
+                $this->update($entityManager, $dto->getSource(), $ch, $transaction->getTransactionHash());
+                self::$recentEntries[] = $entryHash;
+                self::cleanRecentEntries();
+            }
         }
     }
 
     private function processAssociations(Transaction $transaction, EntityManagerInterface $entityManager): void
     {
         foreach ($transaction->getAssociated() as $dto) {
-            $this->associate($entityManager, $dto->getSource(), $dto->getTarget(), $dto->getMapping(), $transaction->getTransactionHash());
+
+            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $dto->getMapping());
+
+            if(!in_array($entryHash, self::$recentEntries)) {
+                $this->associate($entityManager, $dto->getSource(), $dto->getTarget(), $dto->getMapping(), $transaction->getTransactionHash());
+                self::$recentEntries[] = $entryHash;
+                self::cleanRecentEntries();
+            }
         }
     }
 
     private function processDissociations(Transaction $transaction, EntityManagerInterface $entityManager): void
     {
         foreach ($transaction->getDissociated() as $dto) {
-            $this->dissociate($entityManager, $dto->getSource(), $dto->getTarget(), $dto->getMapping(), $transaction->getTransactionHash());
+
+            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $dto->getMapping());
+
+            if(!in_array($entryHash, self::$recentEntries)) {
+                $this->dissociate($entityManager, $dto->getSource(), $dto->getTarget(), $dto->getMapping(), $transaction->getTransactionHash());
+                self::$recentEntries[] = $entryHash;
+                self::cleanRecentEntries();
+            }
         }
     }
 
     private function processDeletions(Transaction $transaction, EntityManagerInterface $entityManager): void
     {
         foreach ($transaction->getRemoved() as $dto) {
-            $this->remove($entityManager, $dto->getSource(), $dto->getId(), $transaction->getTransactionHash());
+
+            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), []);
+
+            if(!in_array($entryHash, self::$recentEntries)) {
+                $this->remove($entityManager, $dto->getSource(), $dto->getId(), $transaction->getTransactionHash());
+                self::$recentEntries[] = $entryHash;
+                self::cleanRecentEntries();
+            }
         }
     }
 
@@ -252,5 +272,22 @@ class TransactionProcessor implements TransactionProcessorInterface
     private function getDiscriminator(object $entity, int $inheritanceType): ?string
     {
         return ClassMetadata::INHERITANCE_TYPE_SINGLE_TABLE === $inheritanceType ? DoctrineHelper::getRealClassName($entity) : null;
+    }
+
+    private function computeEntryHash(string $method, EntityManagerInterface $entityManager, object $entity, array $changes): string
+    {
+        $hashElements = [
+            'method' => $method,
+            'id'     => $this->id($entityManager, $entity),
+            'diff'   => json_encode($this->diff($entityManager, $entity, $changes))
+        ];
+
+        return implode(' - ', $hashElements);
+    }
+
+    public static function cleanRecentEntries() {
+        if(count(self::$recentEntries) > self::MAX_RECENT_ENTRIES) {
+            unset(self::$recentEntries[0]);
+        }
     }
 }
