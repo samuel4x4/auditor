@@ -140,7 +140,7 @@ class TransactionProcessor implements TransactionProcessorInterface
             // the changeset might be updated from UOW extra updates
             $ch = array_merge($dto->getChangeset(), $uow->getEntityChangeSet($dto->getSource()));
 
-            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $ch);
+            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $this->diff($entityManager, $dto->getSource(), $ch));
 
             if(!in_array($entryHash, self::$recentEntries)) {
                 $this->insert($entityManager, $dto->getSource(), $ch, $transaction->getTransactionHash());
@@ -157,7 +157,7 @@ class TransactionProcessor implements TransactionProcessorInterface
             // the changeset might be updated from UOW extra updates
             $ch = array_merge($dto->getChangeset(), $uow->getEntityChangeSet($dto->getSource()));
 
-            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $ch);
+            $entryHash = $this->computeEntryHash(__METHOD__, $entityManager, $dto->getSource(), $this->diff($entityManager, $dto->getSource(), $ch));
 
             if(!in_array($entryHash, self::$recentEntries)) {
                 $this->update($entityManager, $dto->getSource(), $ch, $transaction->getTransactionHash());
@@ -279,7 +279,7 @@ class TransactionProcessor implements TransactionProcessorInterface
         $hashElements = [
             'method' => $method,
             'id'     => $this->id($entityManager, $entity),
-            'diff'   => !empty($changes) ? json_encode($this->diff($entityManager, $entity, $changes)) : ''
+            'diff'   => !empty($changes) ? json_encode($changes) : ''
         ];
 
         return implode(' - ', $hashElements);
