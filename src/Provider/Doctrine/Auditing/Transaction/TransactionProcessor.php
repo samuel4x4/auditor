@@ -279,7 +279,7 @@ class TransactionProcessor implements TransactionProcessorInterface
         $hashElements = [
             'method' => $method,
             'id'     => $this->id($entityManager, $entity),
-            'diff'   => json_encode($this->diff($entityManager, $entity, $changes))
+            'diff'   => !empty($changes) ? json_encode($this->diff($entityManager, $entity, $changes)) : ''
         ];
 
         return implode(' - ', $hashElements);
