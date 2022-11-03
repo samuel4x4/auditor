@@ -1,5 +1,5 @@
 {
-  "name": "damienharper/auditor",
+  "name": "samuel4x4/auditor",
   "type": "library",
   "description": "The missing audit log library.",
   "keywords": ["doctrine", "audit", "audit-log", "audit-trail"],
@@ -21,7 +21,7 @@
     "symfony/options-resolver": "^4.0|^5.0|^6.0"
   },
   "suggest": {
-    "damienharper/auditor-bundle": "Integrate auditor library in your Symfony projects."
+    "samuel4x4/auditor-bundle": "Integrate auditor library in your Symfony projects."
   },
   "autoload": {
     "psr-4": {
