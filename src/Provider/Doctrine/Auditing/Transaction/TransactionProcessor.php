@@ -23,6 +23,9 @@ class TransactionProcessor implements TransactionProcessorInterface
 {
     use AuditTrait;
 
+    const MAX_RECENT_ENTRIES = 100;
+    static array $recentEntries = [];
+    
     private DoctrineProvider $provider;
 
     public function __construct(DoctrineProvider $provider)
@@ -133,10 +136,25 @@ class TransactionProcessor implements TransactionProcessorInterface
     private function processInsertions(Transaction $transaction, EntityManagerInterface $entityManager): void
     {
         $uow = $entityManager->getUnitOfWork();
-        foreach ($transaction->getInserted() as $dto) {
+        foreach ($transaction->getInserted() as $dto) {           
             // the changeset might be updated from UOW extra updates
             $ch = array_merge($dto->getChangeset(), $uow->getEntityChangeSet($dto->getSource()));
-            $this->insert($entityManager, $dto->getSource(), $ch, $transaction->getTransactionHash());
+            
+            $id = $this->id($entityManager, $dto->getSource());
+            $diff = $this->diff($entityManager, $dto->getSource(), $ch);
+            $entryHash = $id . json_encode($diff);
+            
+            if(!in_array($entryHash, self::$recentEntries)) {
+                $this->insert($entityManager, $dto->getSource(), $ch, $transaction->getTransactionHash());
+                self::$recentEntries[] = $entryHash;
+                self::cleanRecentEntries();
+            }
+        }
+    }
+    
+    public static function cleanRecentEntries() {
+        if(count(self::$recentEntries) > self::MAX_RECENT_ENTRIES) {
+            unset(self::$recentEntries[0]);
         }
     }
 
