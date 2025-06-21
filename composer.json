@@ -15,10 +15,10 @@
     "ext-json": "*",
     "doctrine/annotations": "^1.8",
     "doctrine/orm": "^2.7|^3.1",
-    "symfony/cache": "^4.0|^5.0|^6.0",
-    "symfony/event-dispatcher": "^4.0|^5.0|^6.0",
-    "symfony/lock": "^4.0|^5.0|^6.0",
-    "symfony/options-resolver": "^4.0|^5.0|^6.0"
+    "symfony/cache": "^4.0|^5.0|^6.0|^7.0",
+    "symfony/event-dispatcher": "^4.0|^5.0|^6.0|^7.0",
+    "symfony/lock": "^4.0|^5.0|^6.0|^7.0",
+    "symfony/options-resolver": "^4.0|^5.0|^6.0|^7.0"
   },
   "suggest": {
     "samuel4x4/auditor-bundle": "Integrate auditor library in your Symfony projects."
@@ -37,7 +37,7 @@
     "gedmo/doctrine-extensions": "^2.4|^3.0",
     "doctrine/data-fixtures": "^1.4.4",
     "phpunit/phpunit": "^9.0",
-    "symfony/var-dumper": "^4.0|^5.0|^6.0"
+    "symfony/var-dumper": "^4.0|^5.0|^6.0|^7.0"
   },
   "conflict": {
     "doctrine/persistence": "<1.3"
